@@ -1,0 +1,158 @@
+import pandas as pd
+import requests
+import yfinance as yf
+from bs4 import BeautifulSoup
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+import warnings
+import plotly.io as pio
+
+# Suppress warnings for cleaner output
+warnings.filterwarnings('ignore')
+# Setting default renderer for environments like Watson Studio Notebooks
+# Note: You might need to adjust this (e.g., to "svg", "png", or "browser") 
+# based on your specific notebook environment to ensure plots display/save correctly.
+try:
+    pio.renderers.default = "notebook"
+except ValueError:
+    print("Plotly renderer 'notebook' failed. Falling back to 'iframe'.")
+    pio.renderers.default = "iframe"
+
+
+# -----------------------------------------------------------------------------
+# Function Definition (for Q5 and Q6)
+# -----------------------------------------------------------------------------
+
+def make_graph(stock_data, revenue_data, stock):
+    """Generates a graph combining stock price and revenue data."""
+    fig = make_subplots(rows=2, cols=1, 
+                        subplot_titles=(f"{stock} Historical Share Price", f"{stock} Historical Revenue"), 
+                        vertical_spacing=0.3)
+    
+    # Ensure 'Date' columns are datetime objects for plotting
+    stock_data['Date'] = pd.to_datetime(stock_data['Date'])
+    revenue_data['Date'] = pd.to_datetime(revenue_data['Date'])
+
+    # Add Stock Price Trace (Q5 & Q6)
+    fig.add_trace(go.Scatter(x=stock_data['Date'], y=stock_data['Close'], name="Share Price"), row=1, col=1)
+    
+    # Add Revenue Trace (Q5 & Q6)
+    fig.add_trace(go.Scatter(x=revenue_data['Date'], y=revenue_data['Revenue'], name="Revenue"), row=2, col=1)
+    
+    # Update Axes and Layout
+    fig.update_yaxes(title_text="Price ($US)", row=1, col=1)
+    fig.update_yaxes(title_text="Revenue ($US Millions)", row=2, col=1)
+    fig.update_layout(showlegend=False, height=900, title=f"{stock} Stock Price and Revenue", xaxis_rangeslider_visible=True)
+    
+    print(f"\n--- Output for Question {5 if stock == 'Tesla' else 6} ---")
+    print(f"Title: {stock} Stock Graph")
+    print(f"Caption: Plot showing {stock} Stock Price and Revenue.")
+    fig.show() 
+
+
+# -----------------------------------------------------------------------------
+## Question 1: Extract Tesla Stock Data
+# -----------------------------------------------------------------------------
+
+tesla_data = yf.download("TSLA", start="2010-01-01", end="2025-01-01", auto_adjust=True)
+tesla_data.reset_index(inplace=True)
+
+print("\n" + "="*70)
+print("Question 1: Use yfinance to Extract Stock Data (Tesla)")
+print("Caption: First five rows of the Tesla stock data.")
+print("="*70)
+print(tesla_data.head())
+
+# -----------------------------------------------------------------------------
+## Question 2: Extract Tesla Revenue Data
+# -----------------------------------------------------------------------------
+
+url_tesla_revenue = "https://cf-courses-data.s3.us.cloud-object-storage.appdomain.cloud/IBMDeveloperSkillsNetwork-PY0220EN-SkillsNetwork/labs/project/revenue.htm"
+response_tesla = requests.get(url_tesla_revenue, headers={'User-Agent': 'Mozilla/5.0'}, timeout=15)
+soup_tesla = BeautifulSoup(response_tesla.text, 'html.parser')
+
+tables_tesla = soup_tesla.find_all('table')
+table_tesla = tables_tesla[0] 
+rows_tesla = table_tesla.find_all('tr')
+
+dates_tesla, revenues_tesla = [], []
+for row in rows_tesla[1:]:
+    cols = row.find_all('td')
+    if len(cols) >= 2:
+        date = cols[0].text.strip()
+        revenue = cols[1].text.strip().replace('$', '').replace(',', '')
+        if date and revenue:
+            dates_tesla.append(date)
+            try:
+                revenues_tesla.append(float(revenue))
+            except:
+                revenues_tesla.append(None)
+
+tesla_revenue = pd.DataFrame({'Date': dates_tesla, 'Revenue': revenues_tesla})
+tesla_revenue.dropna(subset=['Revenue'], inplace=True)
+
+print("\n" + "="*70)
+print("Question 2: Use Webscraping to Extract Tesla Revenue Data")
+print("Caption: Last five rows of the Tesla revenue data.")
+print("="*70)
+print(tesla_revenue.tail()) 
+
+# -----------------------------------------------------------------------------
+## Question 3: Extract GameStop Stock Data
+# -----------------------------------------------------------------------------
+
+gme_data = yf.download("GME", start="2010-01-01", end="2025-01-01", auto_adjust=True)
+gme_data.reset_index(inplace=True)
+
+print("\n" + "="*70)
+print("Question 3: Use yfinance to Extract Stock Data (GameStop)")
+print("Caption: First five rows of the GameStop stock data.")
+print("="*70)
+print(gme_data.head()) 
+
+# -----------------------------------------------------------------------------
+## Question 4: Extract GameStop Revenue Data
+# -----------------------------------------------------------------------------
+
+url_gme_revenue = "https://cf-courses-data.s3.us.cloud-object-storage.appdomain.cloud/IBMDeveloperSkillsNetwork-PY0220EN-SkillsNetwork/labs/project/stock.html"
+response_gme = requests.get(url_gme_revenue)
+soup_gme = BeautifulSoup(response_gme.text, 'html.parser')
+
+tables_gme = soup_gme.find_all('table')
+table_gme = tables_gme[1]
+rows_gme = table_gme.find_all('tr')
+
+dates_gme, revenues_gme = [], []
+for row in rows_gme[1:]:
+    cols = row.find_all('td')
+    if len(cols) >= 2:
+        date = cols[0].text.strip()
+        revenue = cols[1].text.strip().replace('$', '').replace(',', '')
+        if date and revenue:
+            dates_gme.append(date)
+            try:
+                revenues_gme.append(float(revenue))
+            except:
+                revenues_gme.append(None)
+
+gme_revenue = pd.DataFrame({'Date': dates_gme, 'Revenue': revenues_gme})
+gme_revenue.dropna(subset=['Revenue'], inplace=True)
+
+print("\n" + "="*70)
+print("Question 4: Use Webscraping to Extract GME Revenue Data")
+print("Caption: Last five rows of the GameStop revenue data.")
+print("="*70)
+print(gme_revenue.tail()) 
+
+# -----------------------------------------------------------------------------
+## Question 5: Plot Tesla Stock Graph
+# -----------------------------------------------------------------------------
+
+make_graph(tesla_data, tesla_revenue, 'Tesla') 
+
+# -----------------------------------------------------------------------------
+## Question 6: Plot GameStop Stock Graph
+# -----------------------------------------------------------------------------
+
+make_graph(gme_data, gme_revenue, 'GameStop') 
+
